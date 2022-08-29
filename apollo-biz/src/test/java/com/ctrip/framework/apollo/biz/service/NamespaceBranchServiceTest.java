@@ -22,6 +22,16 @@ import com.ctrip.framework.apollo.biz.entity.Namespace;
 import com.ctrip.framework.apollo.biz.entity.ReleaseHistory;
 import com.ctrip.framework.apollo.common.constants.NamespaceBranchStatus;
 import com.ctrip.framework.apollo.common.constants.ReleaseOperation;
+import com.ctrip.framework.apollo.common.constants.ReleaseOperationContext;
+import com.ctrip.framework.apollo.common.dto.GrayReleaseRuleItemDTO;
+import com.ctrip.framework.apollo.common.utils.GrayReleaseRuleItemTransformer;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.lang.reflect.Type;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -82,7 +92,19 @@ public class NamespaceBranchServiceTest extends AbstractIntegrationTest {
     Assert.assertEquals(ReleaseOperation.APPLY_GRAY_RULES, releaseHistory.getOperation());
     Assert.assertEquals(0, releaseHistory.getReleaseId());
     Assert.assertEquals(0, releaseHistory.getPreviousReleaseId());
-    Assert.assertTrue(releaseHistory.getOperationContext().contains(rule.getRules()));
+
+    Gson gson = new Gson();
+
+    Set<GrayReleaseRuleItemDTO> gtRule = GrayReleaseRuleItemTransformer.batchTransformFromJSON(rule.getRules());
+    Type type = new TypeToken<Map<String, Object>>(){}.getType();
+    Map<String, Object> historyMap = gson.fromJson(releaseHistory.getOperationContext(), type);
+    Set<GrayReleaseRuleItemDTO> history = GrayReleaseRuleItemTransformer.batchTransformFromJSON(historyMap.get(
+        ReleaseOperationContext.RULES).toString());
+    
+    Set<String> gtRuleSet = gtRule.stream().map(e -> e.toString()).collect(Collectors.toSet());
+    Set<String> historyRuleSet = history.stream().map(e -> e.toString()).collect(Collectors.toSet());
+
+    Assert.assertTrue(historyRuleSet.containsAll(gtRuleSet));
   }
 
   @Test
